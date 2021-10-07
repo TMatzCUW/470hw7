@@ -30,34 +30,24 @@
       ((eq? op '*) (* num1 num2))
       (else #f))))
 
-(define math-op-force
-  (lambda (op num1 num2)
-    (cond
-      ((eq? op '<) (if (< num1 num2) 'True 'False))
-      ((eq? op '>) (if (> num1 num2) 'True 'False))
-      ((eq? op '<=) (if (<= num1 num2) 'True 'False))
-      ((eq? op '>=) (if (>= num1 num2) 'True 'False))
-      ((eq? op '==) (if (== num1 num2) 'True 'False))
-      ((eq? op '!=) (if (not (= num1 num2)) 'True 'False)))))
-
 ; ***** PARSERS *****
 (define boolean-expression-parser
   (lambda (boolean-expression)
     (cond
       ((eq? (car boolean-expression) '<)
-       (list 'less-than
+       (list 'less-then
              (no-parser (cadr boolean-expression))
              (no-parser (caddr boolean-expression))))
       ((eq? (car boolean-expression) '<=)
-       (list 'less-than-or-equal
+       (list 'less-then-or-equal
              (no-parser (cadr boolean-expression))
              (no-parser (caddr boolean-expression))))
       ((eq? (car boolean-expression) '>)
-       (list 'greater-than
+       (list 'greater-then
              (no-parser (cadr boolean-expression))
              (no-parser (caddr boolean-expression))))
       ((eq? (car boolean-expression) '>=)
-       (list 'greater-than-or-equal
+       (list 'greater-then-or-equal
              (no-parser (cadr boolean-expression))
              (no-parser (caddr boolean-expression))))
       ((eq? (car boolean-expression) '==)
@@ -68,7 +58,8 @@
        (list 'not-equal
              (no-parser (cadr boolean-expression))
              (no-parser (caddr boolean-expression))))
-      (else 'Not a boolean))))
+      (else "Not a valid boolean expression"))))
+
 (define no-code-function-parser
   (lambda (no-code-function)
     (list 'func-exp
@@ -84,7 +75,7 @@
        (list 'math-exp (cadr no-code) (no-parser (caddr no-code)) (no-parser (cadddr no-code))))
       ((eq? (car no-code) 'ask)
        (list 'ask-exp
-             (caadr no-code)
+             (boolean-expression-parser (cadr no-code))
              (no-parser (caddr no-code))
              (no-parser (car (reverse no-code)))))
       (else (list 'call-exp
@@ -93,33 +84,37 @@
 
 ; ***** Interpreters *****
 (define run-parsed-boolean-code
-  (lambda(parsed-boolean-code env)
+  (lambda (parsed-boolean-code env)
     (cond
-      ((eq? (car parsed-boolean-code) 'less-than)
+      ((eq? (car parsed-boolean-code) 'less-then)
        (<
-        (run-parsed-code (cadr parsed-boolean-code))
-        (run-parsed-code (caddr parsed-boolean-code))))
-      ((eq? (car parsed-boolean-code) 'less-than-or-equal)
+        (run-parsed-code (cadr parsed-boolean-code) env)
+        (run-parsed-code (caddr parsed-boolean-code) env)))
+      ((eq? (car parsed-boolean-code) 'less-then-or-equal)
        (<=
-        (run-parsed-code (cadr parsed-boolean-code))
-        (run-parsed-code (caddr parsed-boolean-code))))
-      ((eq? (car parsed-boolean-code) 'greater-than)
+        (run-parsed-code (cadr parsed-boolean-code) env)
+        (run-parsed-code (caddr parsed-boolean-code) env)))
+      ((eq? (car parsed-boolean-code) 'greater-then)
        (>
-        (run-parsed-code (cadr parsed-boolean-code))
-        (run-parsed-code (caddr parsed-boolean-code))))
-      ((eq? (car parsed-boolean-code) 'greater-than-or-equal)
+        (run-parsed-code (cadr parsed-boolean-code) env)
+        (run-parsed-code (caddr parsed-boolean-code) env)))
+      ((eq? (car parsed-boolean-code) 'greater-then-or-equal)
        (>=
-        (run-parsed-code (cadr parsed-boolean-code))
-        (run-parsed-code (caddr parsed-boolean-code))))
+        (run-parsed-code (cadr parsed-boolean-code) env)
+        (run-parsed-code (caddr parsed-boolean-code) env)))
       ((eq? (car parsed-boolean-code) 'equal)
        (=
-        (run-parsed-code (cadr parsed-boolean-code))
-        (run-parsed-code (caddr parsed-boolean-code))))
+        (run-parsed-code (cadr parsed-boolean-code) env)
+        (run-parsed-code (caddr parsed-boolean-code) env)))
       ((eq? (car parsed-boolean-code) 'not-equal)
-       ((not (=
-        (run-parsed-code (cadr parsed-boolean-code))
-        (run-parsed-code (caddr parsed-boolean-code))))))
-       (else "Not a valid boolean expression"))))
+       (not (=
+        (run-parsed-code (cadr parsed-boolean-code) env)
+        (run-parsed-code (caddr parsed-boolean-code) env))))
+      (else "Not a legal boolean expression!"))))
+       
+        
+
+    
 (define run-parsed-function-code
   (lambda (parsed-no-code-function env)
     (run-parsed-code (cadr (caddr parsed-no-code-function)) env)))
@@ -138,7 +133,7 @@
         (run-parsed-code (caddr parsed-no-code) env)
         (run-parsed-code (cadddr parsed-no-code) env)))
       ((eq? (car parsed-no-code) 'ask-exp)
-       (if (= (cadr parsed-no-code) 1) 
+       (if (run-parsed-boolean-code (cadr parsed-no-code) env) 
            (run-parsed-code (caddr parsed-no-code) env)
            (run-parsed-code (cadddr parsed-no-code) env)))
       (else
@@ -150,10 +145,8 @@
          env))))))
 
 (define env '((age 21) (a 7) (b 5) (c 23)))
-(define sample-no-code '(call (function (x y) (ask (0) (do-mathy-stuff + x y) otherwise 5)) (do-mathy-stuff * a b) 15))
+(define sample-no-code '(ask (!= b 5) 1 otherwise c))
 (define parsed-no-code (no-parser sample-no-code))
-;parsed-no-code
-(run-parsed-code parsed-no-code env)
-      
+(run-parsed-code parsed-no-code env)   
     
       
